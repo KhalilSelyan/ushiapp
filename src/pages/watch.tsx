@@ -10,7 +10,9 @@ function Test() {
 
   const [socket, setSocket] = React.useState<Socket<
     DefaultEventsMap,
-    DefaultEventsMap
+    DefaultEventsMap,
+    DefaultEventsMap,
+    any
   > | null>(null);
 
   const sourceRef = React.useRef<HTMLVideoElement>(null);
@@ -18,7 +20,9 @@ function Test() {
   const [currentTime, setCurrentTime] = React.useState(0);
 
   useEffect(() => {
-    const ss = io("https://ushi-back-production.up.railway.app/");
+    const ss:
+      | Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>
+      | any = io("https://ushi-back-production.up.railway.app/");
     setSocket(ss);
   }, []);
 
