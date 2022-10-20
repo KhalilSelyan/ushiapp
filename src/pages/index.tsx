@@ -5,7 +5,7 @@ import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { v4 as uuidv4 } from "uuid";
 
 function Test() {
-  const [url, setUrl] = React.useState([""]);
+  const [url, setUrl] = React.useState("");
 
   const [type, setType] = React.useState<"host" | "guest" | null>(null);
 
@@ -43,38 +43,56 @@ function Test() {
     if (socket) {
       type === "host"
         ? socket.emit("host", {
-            currentTime: currentTime,
-            isPaused: isPaused,
-            roomNumber: roomNumber,
-            url: url,
-            type: type,
-            // hostMessages: hostMessages,
-            // guestMessages: guestMessages,
-          })
+          currentTime: currentTime,
+          isPaused: isPaused,
+          roomNumber: roomNumber,
+          url: url,
+          type: type,
+          // hostMessages: hostMessages,
+          // guestMessages: guestMessages,
+        })
         : socket.on("watcher", (data) => {
-            if (data.roomNumber === roomNumber) {
-              console.log("data", data);
-              const newUrl = [data.url[data.url.length - 1]];
-              if (newUrl[newUrl.length - 1] !== url[url.length - 1]) {
-                setUrl(newUrl);
+
+          if (data.roomNumber === roomNumber) {
+            setUrl(data.url);
+
+            const video = sourceRef.current?.src;
+
+
+            if (video !== data.url) {
+              sourceRef.current!.src = data.url;
+              sourceRef.current!.load();
+            }
+
+            if (sourceRef.current) {
+              if (data.isPaused) {
+                sourceRef.current.pause();
+              } else {
+                sourceRef.current.play();
               }
-              if (sourceRef.current) {
-                if (data.isPaused) {
-                  sourceRef.current.pause();
-                } else {
-                  sourceRef.current.play();
-                }
-                if (
-                  sourceRef.current.currentTime - data.currentTime > 0.5 ||
-                  sourceRef.current.currentTime - data.currentTime < -0.5
-                ) {
-                  sourceRef.current.currentTime = data.currentTime;
-                }
+              if (
+                sourceRef.current.currentTime - data.currentTime > 0.5 ||
+                sourceRef.current.currentTime - data.currentTime < -0.5
+              ) {
+                sourceRef.current.currentTime = data.currentTime;
               }
             }
-          });
+          }
+        });
     }
   }, [currentTime, guestMessages, hostMessages, isPaused]);
+
+  useEffect(() => {
+    const oldUrl = sourceRef.current?.src
+
+    if (url !== oldUrl && sourceRef.current && type === "host") {
+      sourceRef.current.src = url;
+      sourceRef.current.load();
+    }
+
+
+  }, [url])
+
 
   if (!type) {
     return (
@@ -114,7 +132,7 @@ function Test() {
     return (
       <div className="flex h-screen w-full flex-col items-center overflow-scroll bg-blue-200 p-4">
         {/* input for user to enter the url */}
-        <div className="flex w-full items-center justify-center space-x-2">
+        {type === "host" && <div className="flex w-full items-center justify-center space-x-2">
           <span>Url:</span>
           <input
             type="text"
@@ -122,39 +140,33 @@ function Test() {
             onChange={(event) => {
               // wait for user to finish typing
               const value = event.target.value as string;
-              setTimeout(() => setUrl([...url, value]), 1000);
+              setTimeout(() => setUrl(value), 1000);
             }}
           />
+        </div>}
+
+        <span className="font-bold mt-4">Room Id: {roomNumber}</span>
+        <div
+          className="flex w-full flex-1 items-center justify-center"
+        >
+          <video
+            ref={sourceRef}
+            className="h-4/5 w-3/5 rounded-md border-2 border-black"
+            controls
+            controlsList="download"
+            autoPlay
+            onCanPlay={() => {
+              // get the video current time
+              setInterval(() => {
+                setCurrentTime(sourceRef.current?.currentTime as number);
+              }, 500);
+            }}
+          >
+            <source src={url} type="video/mp4" />
+          </video>
         </div>
 
-        {/* video player only render the last added url*/}
-        {url.map(
-          (item, index) =>
-            url.length - 1 === index && (
-              <div
-                key={index}
-                className="flex w-full flex-1 items-center justify-center"
-              >
-                <video
-                  key={index}
-                  ref={sourceRef}
-                  className="h-4/5 w-3/5 rounded-md border-2 border-black"
-                  controls
-                  controlsList="download"
-                  autoPlay
-                  onCanPlay={() => {
-                    // get the video current time
-                    setInterval(() => {
-                      setCurrentTime(sourceRef.current?.currentTime as number);
-                    }, 500);
-                  }}
-                >
-                  <source src={item} type="video/mp4" />
-                </video>
-              </div>
-            )
-        )}
-        <div className="absolute top-0 right-0 z-10 h-screen w-72 min-w-max bg-black text-white">
+        {/* <div className="absolute top-0 right-0 z-10 h-screen w-72 min-w-max bg-black text-white">
           <div className="space-between flex flex-col space-y-2">
             <div className="flex flex-col items-center justify-center space-y-2">
               <span>Room Number: {roomNumber}</span>
@@ -174,7 +186,7 @@ function Test() {
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     );
 }
