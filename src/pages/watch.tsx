@@ -28,13 +28,19 @@ function Test() {
 
   React.useEffect(() => {
     console.log(currentTime);
+
     if (socket) {
       type === "host"
         ? socket.emit("host", currentTime)
         : socket.on("watcher", (data) => {
             console.log("Listener:", data);
             if (sourceRef.current) {
-              sourceRef.current.currentTime = data;
+              if (
+                sourceRef.current.currentTime - data > 2.5 ||
+                sourceRef.current.currentTime - data < -2.5
+              ) {
+                sourceRef.current.currentTime = data;
+              }
             }
           });
     }
