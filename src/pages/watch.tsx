@@ -1,21 +1,55 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { Socket } from "socket.io";
+import { io } from "socket.io-client";
+import { DefaultEventsMap } from "socket.io/dist/typed-events";
+
 
 function Test() {
   const [url, setUrl] = React.useState([
     "https://sto032.akamai-cdn-content.com/tysxfsutho66j6cdadtrlwcdf6k4y7kw6l6ih566opplyhh4rhm72phqtacq/video.mp4",
   ]);
 
+  const [type, setType] = React.useState<"host" | "guest" | null>(null)
+
+  const [socket, setSocket] = React.useState<Socket<DefaultEventsMap, DefaultEventsMap> | null>(null);
+
   const sourceRef = React.useRef<HTMLVideoElement>(null);
 
   const [currentTime, setCurrentTime] = React.useState(0);
 
+  useEffect(() => {
+    const ss = io("http://localhost:3005");
+    setSocket(ss);
+  }, [])
+
   React.useEffect(() => {
     console.log(currentTime);
+    if (socket) {
+      type === "host" ? socket.emit("host", currentTime) : socket.on("watcher", (data) => {
+        console.log("Listener:", data)
+        if (sourceRef.current) {
+          sourceRef.current.currentTime = data;
+        }
+      })
+    }
+
   }, [currentTime]);
 
+
+  if (!type) {
+    return <div className="w-screen h-screen flex items-center justify-center gap-x-2">
+      <button onClick={() => setType("host")}>Host</button>
+      <button onClick={() => setType("guest")}>Guest</button>
+    </div>
+  }
+
+
   return (
+
     <div className="flex h-screen w-full flex-col items-center justify-evenly overflow-scroll bg-blue-200">
       {/* input for user to enter the url */}
+
+
       <input
         type="text"
         onChange={(event) => {
