@@ -39,60 +39,78 @@ function Test() {
     } else setIsPaused(false);
   }, [sourceRef.current?.paused]);
 
+  const [debug, setDebug] = React.useState("");
+
   useEffect(() => {
     if (socket) {
       type === "host"
         ? socket.emit("host", {
-          currentTime: currentTime,
-          isPaused: isPaused,
-          roomNumber: roomNumber,
-          url: url,
-          type: type,
-          // hostMessages: hostMessages,
-          // guestMessages: guestMessages,
-        })
-        : socket.on("watcher", (data) => {
+            currentTime: currentTime,
+            isPaused: isPaused,
+            roomNumber: roomNumber,
+            url: url,
+            type: type,
+            debug: debug,
+            // hostMessages: hostMessages,
+            // guestMessages: guestMessages,
+          })
+        : socket.on(
+            `watcher${roomNumber}`,
+            (data: {
+              currentTime: number;
+              isPaused: boolean;
+              roomNumber: string;
+              url: string;
+              type: "host" | "guest" | null;
+              debug: string;
+              // hostMessages: string[];
+              // guestMessages: string[];
+            }) => {
+              setUrl(data.url);
 
-          if (data.roomNumber === roomNumber) {
-            setUrl(data.url);
+              const video = sourceRef.current?.src;
 
-            const video = sourceRef.current?.src;
-
-
-            if (video !== data.url) {
-              sourceRef.current!.src = data.url;
-              sourceRef.current!.load();
-            }
-
-            if (sourceRef.current) {
-              if (data.isPaused) {
-                sourceRef.current.pause();
-              } else {
-                sourceRef.current.play();
+              if (video !== data.url) {
+                sourceRef.current!.src = data.url;
+                sourceRef.current!.load();
               }
-              if (
-                sourceRef.current.currentTime - data.currentTime > 0.5 ||
-                sourceRef.current.currentTime - data.currentTime < -0.5
-              ) {
-                sourceRef.current.currentTime = data.currentTime;
+
+              if (sourceRef.current) {
+                if (data.isPaused) {
+                  sourceRef.current.pause();
+                } else {
+                  sourceRef.current.play();
+                }
+                if (
+                  sourceRef.current.currentTime - data.currentTime > 0.5 ||
+                  sourceRef.current.currentTime - data.currentTime < -0.5
+                ) {
+                  sourceRef.current.currentTime = data.currentTime;
+                }
               }
             }
-          }
-        });
+          );
     }
-  }, [currentTime, guestMessages, hostMessages, isPaused]);
+  }, [
+    currentTime,
+    guestMessages,
+    hostMessages,
+    isPaused,
+    debug,
+    roomNumber,
+    socket,
+    type,
+    url,
+  ]);
 
   useEffect(() => {
-    const oldUrl = sourceRef.current?.src
+    const oldUrl = sourceRef.current?.src;
 
     if (url !== oldUrl && sourceRef.current && type === "host") {
       sourceRef.current.src = url;
       sourceRef.current.load();
     }
-
-
-  }, [url])
-
+  }, [url]);
 
   if (!type) {
     return (
@@ -132,23 +150,24 @@ function Test() {
     return (
       <div className="flex h-screen w-full flex-col items-center overflow-scroll bg-blue-200 p-4">
         {/* input for user to enter the url */}
-        {type === "host" && <div className="flex w-full items-center justify-center space-x-2">
-          <span>Url:</span>
-          <input
-            type="text"
-            className="h-10 w-1/2 border-2 border-black"
-            onChange={(event) => {
-              // wait for user to finish typing
-              const value = event.target.value as string;
-              setTimeout(() => setUrl(value), 1000);
-            }}
-          />
-        </div>}
+        {type === "host" && (
+          <div className="flex w-full items-center justify-center space-x-2">
+            <span>Url:</span>
+            <input
+              type="text"
+              className="h-10 w-1/2 border-2 border-black"
+              onChange={(event) => {
+                // wait for user to finish typing
+                const value = event.target.value as string;
+                setTimeout(() => setUrl(value), 1000);
+              }}
+            />
+            <button onClick={() => setDebug("debug")}>Debug</button>
+          </div>
+        )}
 
-        <span className="font-bold mt-4">Room Id: {roomNumber}</span>
-        <div
-          className="flex w-full flex-1 items-center justify-center"
-        >
+        <span className="mt-4 font-bold">Room Id: {roomNumber}</span>
+        <div className="flex w-full flex-1 items-center justify-center">
           <video
             ref={sourceRef}
             className="h-4/5 w-3/5 rounded-md border-2 border-black"
