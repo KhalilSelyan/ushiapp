@@ -226,7 +226,7 @@ function Test() {
       <div className="no-scrollbar flex h-screen w-full flex-col items-center bg-gray-700 p-2">
         {/* input for user to enter the url */}
         {type === "host" && (
-          <div className="flex w-full  items-center justify-center space-x-4 rounded-lg bg-gray-900 p-2 md:w-2/3">
+          <div className="flex w-full  items-center justify-center space-x-4 divide-x-2 rounded-lg bg-gray-900 p-2 md:w-2/3">
             <span className="ml-2 text-sm font-bold text-[#9b5e33]">Url: </span>
             <input
               type="text"
@@ -237,6 +237,10 @@ function Test() {
                 setTimeout(() => setUrl(value), 1000);
               }}
             />
+            <span className="pl-2 text-sm font-bold text-[#ac856a]">
+              {" "}
+              Clicking on the room id will copy it to your clipboard
+            </span>
           </div>
         )}
 
@@ -252,9 +256,9 @@ function Test() {
             {roomNumber}
           </span>
         </span>
-        <span className="text-sm font-bold text-white">
+        {/* <span className="text-sm font-bold text-white">
           Number of watchers: {numberOfParticipants}
-        </span>
+        </span> */}
         <div className="relative flex h-4/5 w-full items-center justify-center rounded-xl bg-gray-500/5 p-2">
           <video
             ref={sourceRef}
