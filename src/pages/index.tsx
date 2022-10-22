@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect } from "react";
 import { Socket } from "socket.io";
 import { io } from "socket.io-client";
