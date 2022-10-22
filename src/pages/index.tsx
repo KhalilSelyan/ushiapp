@@ -3,6 +3,7 @@ import { Socket } from "socket.io";
 import { io } from "socket.io-client";
 import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { v4 as uuidv4 } from "uuid";
+import ChatSheet from "../components/chatSheet";
 
 function Test() {
   const [url, setUrl] = React.useState("");
@@ -12,8 +13,7 @@ function Test() {
   const [socket, setSocket] = React.useState<Socket<
     DefaultEventsMap,
     DefaultEventsMap,
-    DefaultEventsMap,
-    any
+    DefaultEventsMap
   > | null>(null);
 
   const sourceRef = React.useRef<HTMLVideoElement>(null);
@@ -28,8 +28,9 @@ function Test() {
 
   useEffect(() => {
     const ss:
-      | Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>
+      | Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap>
       | any = io("https://ushi-back-production.up.railway.app/");
+    // | any = io("http://localhost:3005/");
     setSocket(ss);
   }, []);
 
@@ -39,7 +40,7 @@ function Test() {
     } else setIsPaused(false);
   }, [sourceRef.current?.paused]);
 
-  const [debug, setDebug] = React.useState("");
+  const [numberOfParticipants, setNumberOfParticipants] = React.useState(0);
 
   useEffect(() => {
     if (socket) {
@@ -49,8 +50,8 @@ function Test() {
             isPaused: isPaused,
             roomNumber: roomNumber,
             url: url,
-            type: type,
-            debug: debug,
+            count: numberOfParticipants,
+
             // hostMessages: hostMessages,
             // guestMessages: guestMessages,
           })
@@ -61,8 +62,7 @@ function Test() {
               isPaused: boolean;
               roomNumber: string;
               url: string;
-              type: "host" | "guest" | null;
-              debug: string;
+
               // hostMessages: string[];
               // guestMessages: string[];
             }) => {
@@ -70,9 +70,9 @@ function Test() {
 
               const video = sourceRef.current?.src;
 
-              if (video !== data.url) {
-                sourceRef.current!.src = data.url;
-                sourceRef.current!.load();
+              if (video !== data.url && sourceRef.current) {
+                sourceRef.current.src = data.url;
+                sourceRef.current.load();
               }
 
               if (sourceRef.current) {
@@ -96,12 +96,67 @@ function Test() {
     guestMessages,
     hostMessages,
     isPaused,
-    debug,
     roomNumber,
     socket,
-    type,
     url,
   ]);
+
+  useEffect(() => {
+    if (socket) {
+      // emit to any one who joins the room host or guest the number of participants and also the room number and add the number of participants to the state
+      // setNumberOfParticipants(numberOfParticipants + 1);
+      if (roomNumber !== "0") {
+        socket.emit("join", {
+          virtualId: roomNumber,
+        });
+        socket.on(
+          `joined${roomNumber}`,
+          (data: { virtualId: string; count: number }) => {
+            // console.log("joined", data);
+            setNumberOfParticipants(data.count);
+          }
+        );
+      }
+    }
+  }, [socket, roomNumber]);
+
+  useEffect(() => {
+    if (socket) {
+      document
+        .getElementById("chat-input")
+        ?.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            const input = document.getElementById(
+              "chat-input"
+            ) as HTMLInputElement;
+            if (input.value !== "") {
+              if (type === "host") {
+                socket.emit("chatMessage", {
+                  message: input.value,
+                  // virtualId: roomNumber,
+                });
+                //   setHostMessages([...hostMessages, input.value]);
+                //   socket.emit("hostMessage", {
+                //     message: input.value,
+                //     roomNumber: roomNumber,
+                //   });
+                // } else {
+                //   setGuestMessages([...guestMessages, input.value]);
+                //   socket.emit("guestMessage", {
+                //     message: input.value,
+                //     roomNumber: roomNumber,
+                //   });
+              }
+              input.value = "";
+            }
+          }
+        });
+
+      socket.on("message", (data: { message: string }) => {
+        console.log("message", data);
+      });
+    }
+  }, [roomNumber, hostMessages, guestMessages]);
 
   useEffect(() => {
     const oldUrl = sourceRef.current?.src;
@@ -114,28 +169,45 @@ function Test() {
 
   if (!type) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center gap-x-2">
-        <button
-          onClick={() => {
-            setType("host");
-            setRoomNumber(virtualId);
-          }}
-        >
-          Host
-        </button>
-        <button onClick={() => setType("guest")}>Guest</button>
+      <div className="flex h-screen w-screen flex-col items-center justify-center space-x-4 space-y-32 bg-gray-700">
+        {/* big letters website title */}
+        <div className="text-2xl font-bold text-white md:text-6xl">
+          Welcome to{" "}
+          <span className="font-mono text-6xl font-bold md:text-9xl ">
+            Ushi
+          </span>
+        </div>
+        <div className="flex items-center justify-center space-x-4 bg-gray-700">
+          <span className="text-white md:text-4xl">Are you a :</span>
+          <button
+            onClick={() => {
+              setType("host");
+              setRoomNumber(virtualId);
+            }}
+            className="rounded-md bg-blue-500 p-2 text-white"
+          >
+            Host
+          </button>
+          <span className="text-white md:text-4xl">Or a :</span>
+          <button
+            onClick={() => setType("guest")}
+            className="rounded-md bg-blue-500 p-2 text-white"
+          >
+            Guest
+          </button>
+        </div>
       </div>
     );
   }
 
   if (type === "guest" && roomNumber === "0") {
     return (
-      <div className="flex h-screen w-full items-center justify-center space-x-2 bg-sky-400">
-        <span>Input room Number: </span>
+      <div className="flex h-screen w-full items-center justify-center space-y-2 space-x-2 bg-gray-800 ">
+        <div className="font-bold text-white md:text-2xl">Input room ID: </div>
         {/* Input room number */}
         <input
           type="text"
-          className="rounded-md border-2 border-black p-2"
+          className="h-11 rounded-lg border-none bg-gray-700 px-4 text-[#9b5e33] placeholder:text-[#9b5e33] focus:outline-none md:w-96 "
           onChange={(e) => {
             setTimeout(() => {
               setRoomNumber(e.target.value);
@@ -148,31 +220,43 @@ function Test() {
 
   if (roomNumber !== "0")
     return (
-      <div className="flex h-screen w-full flex-col items-center overflow-scroll bg-blue-200 p-4">
+      <div className="no-scrollbar flex h-screen w-full flex-col items-center bg-gray-700 p-2">
         {/* input for user to enter the url */}
         {type === "host" && (
-          <div className="flex w-full items-center justify-center space-x-2">
-            <span>Url:</span>
+          <div className="flex w-full  items-center justify-center space-x-4 rounded-lg bg-gray-900 p-2 md:w-2/3">
+            <span className="ml-2 text-sm font-bold text-[#9b5e33]">Url: </span>
             <input
               type="text"
-              className="h-10 w-1/2 border-2 border-black"
+              placeholder="Paste a url to an mp4 file"
+              className="h-full w-full border-none bg-transparent px-4 text-[#9b5e33] placeholder:text-[#9b5e33] focus:outline-none "
               onChange={(event) => {
-                // wait for user to finish typing
                 const value = event.target.value as string;
                 setTimeout(() => setUrl(value), 1000);
               }}
             />
-            <button onClick={() => setDebug("debug")}>Debug</button>
           </div>
         )}
 
-        <span className="mt-4 font-bold">Room Id: {roomNumber}</span>
-        <div className="flex w-full flex-1 items-center justify-center">
+        <span className="mt-2 ml-2 text-sm font-bold text-white">
+          Room Id:{" "}
+          <span
+            className="cursor-pointer font-mono font-bold text-white"
+            onClick={() => {
+              // copy the room number to the clipboard
+              navigator.clipboard.writeText(roomNumber);
+            }}
+          >
+            {roomNumber}
+          </span>
+        </span>
+        <span className="text-sm font-bold text-white">
+          Number of watchers: {numberOfParticipants}
+        </span>
+        <div className="relative flex h-4/5 w-full items-center justify-center rounded-xl bg-gray-500/5 p-2">
           <video
             ref={sourceRef}
-            className="h-4/5 w-3/5 rounded-md border-2 border-black"
+            className="h-full min-h-full w-auto min-w-full max-w-none  border-2 border-black portrait:h-2/5 portrait:w-full landscape:h-full landscape:w-3/5"
             controls
-            controlsList="download"
             autoPlay
             onCanPlay={() => {
               // get the video current time
@@ -184,28 +268,7 @@ function Test() {
             <source src={url} type="video/mp4" />
           </video>
         </div>
-
-        {/* <div className="absolute top-0 right-0 z-10 h-screen w-72 min-w-max bg-black text-white">
-          <div className="space-between flex flex-col space-y-2">
-            <div className="flex flex-col items-center justify-center space-y-2">
-              <span>Room Number: {roomNumber}</span>
-              <span>Current Time: {currentTime}</span>
-              <span>Is Paused: {isPaused ? "true" : "false"}</span>
-            </div>
-            <div className="flex flex-col items-start justify-start space-y-2 p-2">
-              <span>Host Messages:</span>
-              {hostMessages.map((item, index) => (
-                <span key={index}>{item}</span>
-              ))}
-              <div className="flex ">
-                <span>Guest Messages:</span>
-                {guestMessages.map((item, index) => (
-                  <span key={index}>{item}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div> */}
+        <ChatSheet />
       </div>
     );
 }
