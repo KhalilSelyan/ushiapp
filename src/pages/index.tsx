@@ -237,7 +237,7 @@ function Test() {
                 setTimeout(() => setUrl(value), 1000);
               }}
             />
-            <span className="pl-2 text-sm font-bold text-[#ac856a]">
+            <span className="pl-2 text-xs font-bold text-[#ac856a]">
               {" "}
               Clicking on the room id will copy it to your clipboard
             </span>
