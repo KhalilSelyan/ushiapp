@@ -210,6 +210,7 @@ function Test() {
         {/* Input room number */}
         <input
           type="text"
+          autoComplete="off"
           className="h-11 rounded-lg border-none bg-gray-700 px-4 text-[#9b5e33] placeholder:text-[#9b5e33] focus:outline-none md:w-96 "
           onChange={(e) => {
             setTimeout(() => {
@@ -230,6 +231,7 @@ function Test() {
             <span className="ml-2 text-sm font-bold text-[#9b5e33]">Url: </span>
             <input
               type="text"
+              autoComplete="off"
               placeholder="Paste a url to an mp4 file"
               className="h-full w-full border-none bg-transparent px-4 text-[#9b5e33] placeholder:text-[#9b5e33] focus:outline-none "
               onChange={(event) => {
