@@ -82,8 +82,8 @@ function Test() {
                   sourceRef.current.play();
                 }
                 if (
-                  sourceRef.current.currentTime - data.currentTime > 0.5 ||
-                  sourceRef.current.currentTime - data.currentTime < -0.5
+                  sourceRef.current.currentTime - data.currentTime > 1.5 ||
+                  sourceRef.current.currentTime - data.currentTime < -1.5
                 ) {
                   sourceRef.current.currentTime = data.currentTime;
                 }
