@@ -1,3 +1,15 @@
 import { atom } from "jotai";
 
-export const messagesFromUserAtom = atom<string[]>([]);
+export const guestViewMessages = atom<
+  {
+    name: string;
+    message: string;
+  }[]
+>([]);
+
+export const hostViewMessages = atom<
+  {
+    name: string;
+    message: string;
+  }[]
+>([]);

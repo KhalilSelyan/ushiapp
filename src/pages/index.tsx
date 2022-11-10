@@ -1,17 +1,31 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/exhaustive-deps */
+import { useAtom } from "jotai";
 import React, { useEffect } from "react";
 import { Socket } from "socket.io";
 import { io } from "socket.io-client";
 import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { v4 as uuidv4 } from "uuid";
 import ChatSheet from "../components/chatSheet";
+import { useDebounce } from "react-use";
+import { guestViewMessages, hostViewMessages } from "../jotai/jotai";
 
-function Test() {
+function WatchPage() {
   const [url, setUrl] = React.useState("");
 
-  const [type, setType] = React.useState<"host" | "guest" | null>(null);
+  const [type, setType] = React.useState<string | null>(null);
+  const [name, setName] = React.useState("");
+  const [debouncedValue, setDebouncedValue] = React.useState("");
+  const nameInputRef = React.useRef<HTMLInputElement>(null);
+  const [] = useDebounce(
+    () => {
+      nameInputRef.current?.blur();
+      setDebouncedValue(name);
+    },
+    1500,
+    [name]
+  );
 
   const [socket, setSocket] = React.useState<Socket<
     DefaultEventsMap,
@@ -26,14 +40,14 @@ function Test() {
   const [roomNumber, setRoomNumber] = React.useState("0");
   const virtualId = uuidv4();
 
-  const [hostMessages, setHostMessages] = React.useState<string[]>([]);
-  const [guestMessages, setGuestMessages] = React.useState<string[]>([]);
+  // array of objects with {type: "host" | "guest", message: string}
+  const [guestViewMsg, setGuestViewMessages] = useAtom(guestViewMessages);
 
   useEffect(() => {
     const ss:
       | Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap>
-      | any = io("https://ushi-back-production.up.railway.app/");
-    // | any = io("http://localhost:3005/");
+      // | any = io("https://ushi-back-production.up.railway.app/");
+      | any = io("http://localhost:3005/");
     setSocket(ss);
   }, []);
 
@@ -43,124 +57,99 @@ function Test() {
     } else setIsPaused(false);
   }, [sourceRef.current?.paused]);
 
-  const [numberOfParticipants, setNumberOfParticipants] = React.useState(0);
-
   useEffect(() => {
-    if (socket) {
-      type === "host"
-        ? socket.emit("host", {
-            currentTime: currentTime,
-            isPaused: isPaused,
-            roomNumber: roomNumber,
-            url: url,
-            count: numberOfParticipants,
+    if (socket && type) {
+      socket.emit("join", { roomNumber, name });
 
-            // hostMessages: hostMessages,
-            // guestMessages: guestMessages,
-          })
-        : socket.on(
-            `watcher${roomNumber}`,
-            (data: {
-              currentTime: number;
-              isPaused: boolean;
-              roomNumber: string;
-              url: string;
-
-              // hostMessages: string[];
-              // guestMessages: string[];
-            }) => {
-              setUrl(data.url);
-
-              const video = sourceRef.current?.src;
-
-              if (video !== data.url && sourceRef.current) {
-                sourceRef.current.src = data.url;
-                sourceRef.current.load();
-              }
-
-              if (sourceRef.current) {
-                if (data.isPaused) {
-                  sourceRef.current.pause();
-                } else {
-                  sourceRef.current.play();
-                }
-                if (
-                  sourceRef.current.currentTime - data.currentTime > 1.5 ||
-                  sourceRef.current.currentTime - data.currentTime < -1.5
-                ) {
-                  sourceRef.current.currentTime = data.currentTime;
-                }
-              }
-            }
-          );
+      socket.on("user-connected", (data) => {
+        console.log(data);
+      });
+      socket.on("newUser", (data) => {
+        console.log(data);
+      });
     }
-  }, [
-    currentTime,
-    guestMessages,
-    hostMessages,
-    isPaused,
-    roomNumber,
-    socket,
-    url,
-  ]);
-
-  useEffect(() => {
-    if (socket) {
-      // emit to any one who joins the room host or guest the number of participants and also the room number and add the number of participants to the state
-      // setNumberOfParticipants(numberOfParticipants + 1);
-      if (roomNumber !== "0") {
-        socket.emit("join", {
-          virtualId: roomNumber,
-        });
-        socket.on(
-          `joined${roomNumber}`,
-          (data: { virtualId: string; count: number }) => {
-            // console.log("joined", data);
-            setNumberOfParticipants(data.count);
-          }
-        );
-      }
-    }
-  }, [socket, roomNumber]);
+  }, [roomNumber]);
 
   useEffect(() => {
     if (socket) {
       document
         .getElementById("chat-input")
-        ?.addEventListener("keypress", (e) => {
+        ?.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
             const input = document.getElementById(
               "chat-input"
             ) as HTMLInputElement;
             if (input.value !== "") {
-              if (type === "host") {
-                socket.emit("chatMessage", {
-                  message: input.value,
-                  // virtualId: roomNumber,
-                });
-                //   setHostMessages([...hostMessages, input.value]);
-                //   socket.emit("hostMessage", {
-                //     message: input.value,
-                //     roomNumber: roomNumber,
-                //   });
-                // } else {
-                //   setGuestMessages([...guestMessages, input.value]);
-                //   socket.emit("guestMessage", {
-                //     message: input.value,
-                //     roomNumber: roomNumber,
-                //   });
-              }
+              socket.emit("chatMessage", {
+                name: name,
+                message: input.value,
+              });
+              // add the message to the jotai state to the old messages
+              socket.on("message", (data) => {
+                const newMessage = {
+                  name: data.name,
+                  message: data.message,
+                };
+
+                setGuestViewMessages((old) => [...old, newMessage]);
+                // only add the message once to the state
+              });
               input.value = "";
+              input.focus();
+              setTimeout(() => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+              }, 200);
             }
           }
         });
-
-      socket.on("message", (data: { message: string }) => {
-        console.log("message", data);
-      });
+      const chatContainer = document.getElementById(
+        "chat-container"
+      ) as HTMLDivElement;
     }
-  }, [roomNumber, hostMessages, guestMessages]);
+    if (socket) {
+      if (type === "host") {
+        socket.emit("host", {
+          currentTime: currentTime,
+          isPaused: isPaused,
+          roomNumber: roomNumber,
+          url: url,
+        });
+      } else {
+        socket.on(
+          `watcher`,
+          (data: {
+            currentTime: number;
+            isPaused: boolean;
+            roomNumber: string;
+            url: string;
+          }) => {
+            setUrl(data.url);
 
+            const video = sourceRef.current?.src;
+
+            if (video !== data.url && sourceRef.current) {
+              sourceRef.current.src = data.url;
+              sourceRef.current.load();
+            }
+
+            if (sourceRef.current) {
+              if (data.isPaused) {
+                sourceRef.current.pause();
+              } else {
+                sourceRef.current.play();
+              }
+              if (
+                sourceRef.current.currentTime - data.currentTime > 1.5 ||
+                sourceRef.current.currentTime - data.currentTime < -1.5
+              ) {
+                sourceRef.current.currentTime = data.currentTime;
+              }
+            }
+          }
+        );
+      }
+    }
+  }, [currentTime, , isPaused, roomNumber, socket, url]);
   useEffect(() => {
     const oldUrl = sourceRef.current?.src;
 
@@ -172,7 +161,7 @@ function Test() {
 
   if (!type) {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center space-x-4 space-y-32 bg-gray-700">
+      <div className="flex h-screen w-screen flex-col items-center justify-center space-x-4 space-y-16 bg-gray-800">
         {/* big letters website title */}
         <div className="text-2xl font-bold text-white md:text-6xl">
           Welcome to{" "}
@@ -180,7 +169,18 @@ function Test() {
             Ushi
           </span>
         </div>
-        <div className="flex items-center justify-center space-x-4 bg-gray-700">
+        <div>
+          <span className="font-bold text-white md:text-2xl">Name: </span>
+          <input
+            ref={nameInputRef}
+            type="text"
+            className="h-11 rounded-lg border-none bg-gray-700 px-4 text-[#9b5e33] placeholder:text-[#9b5e33] focus:outline-none md:w-96 "
+            onChange={({ currentTarget }) => {
+              setName(currentTarget.value);
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-center space-x-4 ">
           <span className="text-white md:text-4xl">Are you a :</span>
           <button
             onClick={() => {
@@ -282,4 +282,4 @@ function Test() {
     );
 }
 
-export default Test;
+export default WatchPage;
